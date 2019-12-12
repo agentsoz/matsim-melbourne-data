@@ -26,6 +26,28 @@ samplePersons <- function(sampleSize = NULL) {
   }
   
   colnames(sampleSet)<-header
-  sampleSet<-sampleSet[order(rownames(sampleSet)),]
+  sampleSet<-sampleSet[order(as.numeric(rownames(sampleSet))),]
   return(sampleSet)
+}
+
+
+assignSa1Maincode <- function(persons) {
+  # read in the SA1s file
+  gz1<-gzfile('persons/SA1_2016_AUST.csv.gz', 'rt')
+  sa1s<-read.csv(gz1, header=T, stringsAsFactors=F, strip.white=T)
+  close(gz1)
+  sa1s$SA1_MAINCODE_2016<-as.character(sa1s$SA1_MAINCODE_2016)
+  sa1s$SA1_7DIGITCODE_2016<-as.character(sa1s$SA1_7DIGITCODE_2016)
+  
+  # create a new column for SA1_MAINCODE_2016
+  persons$SA1_MAINCODE_2016<-""
+  
+  # match and assign
+  df<-apply(persons, 1, function(p) {
+    sa1<-sa1s[sa1s$SA2_MAINCODE_2016==p['SA2_MAINCODE'] & sa1s$SA1_7DIGITCODE_2016==p['SA1_7DIGCODE'],]
+    p['SA1_MAINCODE_2016']<-sa1$SA1_MAINCODE_2016
+    p
+  })
+  df<-t(df)
+  return(df)
 }

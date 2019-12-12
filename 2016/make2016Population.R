@@ -2,18 +2,12 @@
 # Be wary of the KISS (Keep It Simple Stupid) assumptions and simplifications below
 #
 
-
 suppressWarnings(library(markovchain))
-infile<-'persons/melbourne-2016-population.persons.csv.gz'
+source('persons/samplePersons.R')
+source('locations/importData.R')
 
-rows<-as.numeric(system(paste('gunzip -c', infile, '| wc -l'), intern=TRUE))
-
-# sample one person from the population
-gz1<-gzfile(infile, 'rt')
-sample<-read.csv(gz1, nrows=1, skip = sample(rows,1), header=F, stringsAsFactors=F, strip.white=T)
-header<-read.csv(gz1, nrows=1, header=F, stringsAsFactors=F, strip.white=T )
-close(gz1)
-person<-rbind(header,sample)
+# sample N persons from the population
+# persons<-samplePersons(100)
 
 # Read the markov chain model for trip chains
 mc<-readRDS('./activities/vista_2012_16_extracted_activities_weekday_markov_chain_model.rds')
