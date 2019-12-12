@@ -7,7 +7,8 @@ source('persons/samplePersons.R')
 source('locations/importData.R')
 
 # sample N persons from the population
-# persons<-samplePersons(100)
+#orig<-samplePersons(100)
+#persons<-assignSa1Maincode(orig)
 
 # Read the markov chain model for trip chains
 mc<-readRDS('./activities/vista_2012_16_extracted_activities_weekday_markov_chain_model.rds')
