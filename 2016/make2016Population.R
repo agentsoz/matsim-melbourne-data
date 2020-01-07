@@ -106,7 +106,6 @@ for(i in 2:length(tc)) {
   # determine SA1 for this activity type given last SA1
   if (is.null(mode) || tc[i-1]=="home") { # mode can change if last activity was home
     df<-findLocation(acts[i-1,]$sa1,acts[i,]$type)
-    cat(paste0('new mode from act ',acts[i-1,]$id,'->',acts[i,]$id, ' is ', df[1], '\n'))
   } else {
     df<-findLocationKnownMode(acts[i-1,]$sa1, acts[i,]$type, mode)
   }
