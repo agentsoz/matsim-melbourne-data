@@ -24,3 +24,5 @@ getfile "https://cloudstor.aarnet.edu.au/plus/s/Ev2HoKbckrMiHVJ/download?path=%2
 getfile "https://cloudstor.aarnet.edu.au/plus/s/Ev2HoKbckrMiHVJ/download?path=%2F&files=valid_addresses.sqlite" "$DIR/valid_addresses.sqlite"
 
 getfile "https://cloudstor.aarnet.edu.au/plus/s/Ev2HoKbckrMiHVJ/download?path=%2F&files=distanceMatrix.rds" "$DIR/distanceMatrix.rds"
+
+getfile "https://cloudstor.aarnet.edu.au/plus/s/Ev2HoKbckrMiHVJ/download?path=%2F&files=distanceMatrixIndex.csv" "$DIR/distanceMatrixIndex.csv"

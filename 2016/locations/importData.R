@@ -1,26 +1,26 @@
-library(sf) # for spatial things
-library(dplyr) # for manipulating data
-library(scales) # for scaling datasets
+suppressWarnings(library(sf)) # for spatial things
+suppressWarnings(library(dplyr)) # for manipulating data
+suppressWarnings(library(scales)) # for scaling datasets
 
 # Read in the distance matrix. This matrix is symmetric so it doesn't matter if
 # you do lookups by column or row.
-distanceMatrix <- readRDS(file="distanceMatrix.rds")
+distanceMatrix <- readRDS(file="locations/distanceMatrix.rds")
 
 # Some SA1s ended up snapping their centroid to the same node in the road
 # network so we need to use an index.
-distanceMatrixIndex <- read.csv("distanceMatrixIndex.csv")
+distanceMatrixIndex <- read.csv("locations/distanceMatrixIndex.csv")
 
 # Reading in the attributed SA1 regions. I'm removing the geometry since it
 # won't be used here. Joining with the distance matrix index so the regions are
 # in the correct order.
 SA1_attributed <- inner_join(distanceMatrixIndex,
-                             st_read("SA1_attributed.sqlite"),
+                             st_read("locations/SA1_attributed.sqlite"),
                              by=c("sa1_main16"="sa1_mainco")) %>%
   dplyr::select(-GEOMETRY)
 
 # Reading in the addresses. I'm removing the geometry and converting it to X,Y.
 # These coordinates are in EPSG:7845, which is a projected coordinate system.
-addresses <- st_read("valid_addresses.sqlite")
+addresses <- st_read("locations/valid_addresses.sqlite")
 addresses <- cbind(st_drop_geometry(addresses),
                    st_coordinates(addresses))
 

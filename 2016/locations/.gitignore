@@ -1,3 +1,4 @@
 SA1_attributed.sqlite
 distanceMatrix.rds
+distanceMatrixIndex.csv
 valid_addresses.sqlite
