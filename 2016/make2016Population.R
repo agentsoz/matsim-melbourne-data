@@ -83,7 +83,8 @@ generateMATSimPersonXML <- function(pid, p, tc) {
     # get a person and determine its home SA1 and coordinates
     home_sa1<-as.character(person$SA1_MAINCODE_2016)
     home_xy<-getAddressCoordinates(home_sa1,"home")
-    
+    if(is.null(home_xy)) return(NULL)
+
     # data frames for storing this person's activities and connecting legs
     acts<-data.frame(id=NA, type=NA, sa1=NA, x=NA, y=NA, start_hhmmss=NA, end_hhmmss=NA)
     legs<-data.frame(origin_act_id=NA,mode=NA,dest_act_id=NA)
@@ -119,6 +120,7 @@ generateMATSimPersonXML <- function(pid, p, tc) {
       } else {
         acts[i,]$sa1<-df[2]
         xy<-getAddressCoordinates(acts[i,]$sa1,acts[i,]$type)
+        if(is.null(xy)) return(NULL)
         acts[i,]$x<-xy[1]
         acts[i,]$y<-xy[2]
         # if this is a work activity then also save its SA1 and XY coordinates for future re-use
@@ -188,6 +190,7 @@ generateMATSimPersonXML <- function(pid, p, tc) {
   
   # build activities and legs for the person
   df<-createMATSimActivitiesAndLegs(p, tc)
+  if(is.null(df)) return(NULL)
   acts<-df[[1]]
   legs<-df[[2]]
   # new XML node for this person
@@ -211,40 +214,69 @@ generateMATSimPersonXML <- function(pid, p, tc) {
 # )
 
 
-printProgress<-function(row) {
-  if((row-1)%%50==0) cat(paste0(as.character(Sys.time()),' |'))
-  if(row%%10==0) {
-    cat('|')
-  } else {
-    cat('.')
-  }
+echo<- function(msg) {
+  cat(paste0(as.character(Sys.time()), ' | ', msg))  
+}
+
+
+printProgress<-function(row, char) {
+  if((row-1)%%50==0) echo('')
+  cat(char)
+  if(row%%10==0) cat('|')
   if(row%%50==0) cat(paste0(' ', row,'\n'))
+}
+
+# sample N persons from the population
+getPersons<-function(n) {
+  orig<-samplePersons(n)
+  persons<-assignSa1Maincode(orig)
+  persons<-as.data.frame(persons)
 }
 
 ### START HERE
 
+# save log
+sink("make2016Population.log", append=FALSE, split=TRUE) # sink to both console and log file
+
+# number of persons to create
+sampleSize=1000
+echo(paste0('selecting a random sample of ', sampleSize, ' persons from the Melbourne 2016 population\n'))
+persons<-getPersons(1000)
+
 # Read the markov chain model for trip chains
 mc<-readRDS('./activities/vista_2012_16_extracted_activities_weekday_markov_chain_model.rds')
 
-# sample N persons from the population
-orig<-samplePersons(1000)
-persons<-assignSa1Maincode(orig)
-persons<-as.data.frame(persons)
-
-
 # create MATSim population XML
+echo(paste0('generating ', sampleSize, ' MATSim persons with trips\n'))
 popn<-newXMLNode("population")
+discarded<-persons[FALSE,]
 for (row in 1:nrow(persons)) {
-  printProgress(row)
+  error=FALSE
   # get the person
   p<-persons[row,]
   # generate a trip chain for this person
   tc<-generateTripChain(mc,p$SA1_MAINCODE_2016)
   # generate MATSim XML for this person
   pp<-generateMATSimPersonXML(row-1, p, tc)
-  # attach this person to the population
-  addChildren(popn,pp)
+  if(is.null(pp)) { 
+    # can be NULL sometimes if type of location required for some activiy in chain cannot be found in given SA1
+    discarded<-rbind(discarded,p)
+    error=TRUE
+    printProgress(row,'x')
+  } else {
+    # attach this person to the population
+    addChildren(popn,pp)
+    printProgress(row,'.')
+  }
 }
 
-#tripChainToTours(tc)
+echo(paste0('finished generating ',sampleSize-nrow(discarded),'/',sampleSize,' persons.'))
+if(nrow(discarded)>0) {
+  echo('the following persons were discarded as suitable locations for generated activity chain could not be allocated')
+  cat(show(discarded))
+}
 
+xmlfile<-paste0('2016popn',sampleSize,'.xml')
+saveXML(popn, xmlfile)
+echo(paste0('saved MATSim population to ', xmlfile))
+sink() # end the diversion
