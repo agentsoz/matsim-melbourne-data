@@ -7,6 +7,7 @@ suppressWarnings(library(XML))
 source('persons/samplePersons.R')
 source('locations/importData.R')
 
+make2016MATSimMelbournePopulation <- function(sampleSize) {
 # create a trip chain for a person
 generateTripChain<-function(mc, SA1) {
   
@@ -233,15 +234,12 @@ getPersons<-function(n) {
   persons<-as.data.frame(persons)
 }
 
-### START HERE
-
 # save log
 sink("make2016Population.log", append=FALSE, split=TRUE) # sink to both console and log file
 
 # number of persons to create
-sampleSize=1000
 echo(paste0('selecting a random sample of ', sampleSize, ' persons from the Melbourne 2016 population\n'))
-persons<-getPersons(1000)
+persons<-getPersons(sampleSize)
 
 # Read the markov chain model for trip chains
 mc<-readRDS('./activities/vista_2012_16_extracted_activities_weekday_markov_chain_model.rds')
@@ -269,14 +267,19 @@ for (row in 1:nrow(persons)) {
     printProgress(row,'.')
   }
 }
-
-echo(paste0('finished generating ',sampleSize-nrow(discarded),'/',sampleSize,' persons.'))
+cat('\n')
+echo(paste0('finished generating ',sampleSize-nrow(discarded),'/',sampleSize,' persons\n'))
 if(nrow(discarded)>0) {
-  echo('the following persons were discarded as suitable locations for generated activity chain could not be allocated')
-  cat(show(discarded))
+  xx<-discarded[,c("AgentId","Age","Gender","RelationshipStatus","SA1_MAINCODE_2016")]
+  echo('the following persons were discarded as suitable locations for generated activity chain could not be allocated\n')
+  cat(show(xx))
 }
 
 xmlfile<-paste0('2016popn',sampleSize,'.xml')
 saveXML(popn, xmlfile)
 echo(paste0('saved MATSim population to ', xmlfile))
 sink() # end the diversion
+
+}
+
+make2016MATSimMelbournePopulation(1000)
