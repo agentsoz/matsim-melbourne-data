@@ -98,6 +98,8 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
       acts[1,]$sa1<-home_sa1
       acts[1,]$x<-home_xy[1]
       acts[1,]$y<-home_xy[2]
+      acts[1,]$start_hhmmss<-"06:00:00" # TODO: set sensible start/end times
+      acts[1,]$end_hhmmss<-"06:00:00" # TODO: set sensible start/end times
       # determine the SA1 and coordinartes for the remaining activites
       mode<-NULL
       work_sa1<-NULL; work_xy<-NULL
