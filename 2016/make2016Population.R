@@ -76,76 +76,76 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
   # tripChainToTours<-function(tc) {
   # }
   
+  # Function to create activities and legs from given trip chain
+  createMATSimActivitiesAndLegs <- function(person, tc) {
+    # get a person and determine its home SA1 and coordinates
+    home_sa1<-as.character(person$SA1_MAINCODE_2016)
+    home_xy<-getAddressCoordinates(home_sa1,"home")
+    if(is.null(home_xy)) return(NULL)
+    
+    # data frames for storing this person's activities and connecting legs
+    acts<-data.frame(act_id=NA, type=NA, sa1=NA, x=NA, y=NA, start_hhmmss=NA, end_hhmmss=NA)
+    legs<-data.frame(origin_act_id=NA,mode=NA,dest_act_id=NA)
+    
+    # first activity is always home
+    if (tc[1] != "home") stop(paste0('First activity in trip chain must be `home` but was `',tc[1],'`'))
+    acts[1,]$act_id<-1
+    acts[1,]$type<-"home"
+    acts[1,]$sa1<-home_sa1
+    acts[1,]$x<-home_xy[1]
+    acts[1,]$y<-home_xy[2]
+    acts[1,]$start_hhmmss<-"06:00:00" # TODO: set sensible start/end times
+    acts[1,]$end_hhmmss<-"06:00:00" # TODO: set sensible start/end times
+    # determine the SA1 and coordinartes for the remaining activites
+    mode<-NULL
+    work_sa1<-NULL; work_xy<-NULL
+    for(i in 2:length(tc)) {
+      acts[i,]$act_id<-i
+      acts[i,]$type<-tc[i]
+      # determine SA1 for this activity type given last SA1
+      if (is.null(mode) || tc[i-1]=="home") { # mode can change if last activity was home
+        df<-findLocation(acts[i-1,]$sa1,acts[i,]$type)
+      } else {
+        df<-findLocationKnownMode(acts[i-1,]$sa1, acts[i,]$type, mode)
+      }
+      # assign the SA1 and coords
+      if(tc[i]=="home") { # re-use home SA1 and coords
+        acts[i,]$sa1<-home_sa1 
+        acts[i,]$x<-home_xy[1]
+        acts[i,]$y<-home_xy[2]
+      } else if(tc[i]=="work" && !is.null(work_sa1)) { # re-use work SA1 and coords
+        acts[i,]$sa1<-work_sa1
+        acts[i,]$x<-work_xy[1]
+        acts[i,]$y<-work_xy[2]
+      } else {
+        acts[i,]$sa1<-df[2]
+        xy<-getAddressCoordinates(acts[i,]$sa1,acts[i,]$type)
+        if(is.null(xy)) return(NULL)
+        acts[i,]$x<-xy[1]
+        acts[i,]$y<-xy[2]
+        # if this is a work activity then also save its SA1 and XY coordinates for future re-use
+        if(tc[i]=="work" && is.null(work_sa1)) {
+          work_sa1<-df[2]
+          work_xy<-xy
+        }
+      }
+      
+      # TODO: assign sensible start and end times for activities
+      acts[i,]$start_hhmmss<-"06:00:00"
+      acts[i,]$end_hhmmss<-"06:00:00"
+      
+      # save the leg
+      mode=df[1]
+      legs[i-1,]$origin_act_id<-acts[i-1,]$act_id
+      legs[i-1,]$dest_act_id<-acts[i,]$act_id
+      legs[i-1,]$mode<-mode
+    }
+    return(list(acts,legs))
+  }
   
   # Function to generate MATSim person XML
-  generateMATSimPersonXML <- function(pid, p, tc) {
+  generateMATSimPersonXML <- function(pid, p, acts, legs) {
     
-    # internal function to create activities and legs from given trip chain
-    createMATSimActivitiesAndLegs <- function(person, tc) {
-      # get a person and determine its home SA1 and coordinates
-      home_sa1<-as.character(person$SA1_MAINCODE_2016)
-      home_xy<-getAddressCoordinates(home_sa1,"home")
-      if(is.null(home_xy)) return(NULL)
-      
-      # data frames for storing this person's activities and connecting legs
-      acts<-data.frame(act_id=NA, type=NA, sa1=NA, x=NA, y=NA, start_hhmmss=NA, end_hhmmss=NA)
-      legs<-data.frame(origin_act_id=NA,mode=NA,dest_act_id=NA)
-      
-      # first activity is always home
-      if (tc[1] != "home") stop(paste0('First activity in trip chain must be `home` but was `',tc[1],'`'))
-      acts[1,]$act_id<-1
-      acts[1,]$type<-"home"
-      acts[1,]$sa1<-home_sa1
-      acts[1,]$x<-home_xy[1]
-      acts[1,]$y<-home_xy[2]
-      acts[1,]$start_hhmmss<-"06:00:00" # TODO: set sensible start/end times
-      acts[1,]$end_hhmmss<-"06:00:00" # TODO: set sensible start/end times
-      # determine the SA1 and coordinartes for the remaining activites
-      mode<-NULL
-      work_sa1<-NULL; work_xy<-NULL
-      for(i in 2:length(tc)) {
-        acts[i,]$act_id<-i
-        acts[i,]$type<-tc[i]
-        # determine SA1 for this activity type given last SA1
-        if (is.null(mode) || tc[i-1]=="home") { # mode can change if last activity was home
-          df<-findLocation(acts[i-1,]$sa1,acts[i,]$type)
-        } else {
-          df<-findLocationKnownMode(acts[i-1,]$sa1, acts[i,]$type, mode)
-        }
-        # assign the SA1 and coords
-        if(tc[i]=="home") { # re-use home SA1 and coords
-          acts[i,]$sa1<-home_sa1 
-          acts[i,]$x<-home_xy[1]
-          acts[i,]$y<-home_xy[2]
-        } else if(tc[i]=="work" && !is.null(work_sa1)) { # re-use work SA1 and coords
-          acts[i,]$sa1<-work_sa1
-          acts[i,]$x<-work_xy[1]
-          acts[i,]$y<-work_xy[2]
-        } else {
-          acts[i,]$sa1<-df[2]
-          xy<-getAddressCoordinates(acts[i,]$sa1,acts[i,]$type)
-          if(is.null(xy)) return(NULL)
-          acts[i,]$x<-xy[1]
-          acts[i,]$y<-xy[2]
-          # if this is a work activity then also save its SA1 and XY coordinates for future re-use
-          if(tc[i]=="work" && is.null(work_sa1)) {
-            work_sa1<-df[2]
-            work_xy<-xy
-          }
-        }
-        
-        # TODO: assign sensible start and end times for activities
-        acts[i,]$start_hhmmss<-"06:00:00"
-        acts[i,]$end_hhmmss<-"06:00:00"
-        
-        # save the leg
-        mode=df[1]
-        legs[i-1,]$origin_act_id<-acts[i-1,]$act_id
-        legs[i-1,]$dest_act_id<-acts[i,]$act_id
-        legs[i-1,]$mode<-mode
-      }
-      return(list(acts,legs))
-    }
     
     ### internal function to generate MATSim person attributes
     attachMATSimPersonAttributes <- function(pp,p) {
@@ -195,11 +195,6 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
       return(pp)  
     }
     
-    # build activities and legs for the person
-    df<-createMATSimActivitiesAndLegs(p, tc)
-    if(is.null(df)) return(NULL)
-    acts<-df[[1]]
-    legs<-df[[2]]
     # new XML node for this person
     pp<-newXMLNode("person", attrs=c(id=pid))
     # attach person attributes to XML node
@@ -262,8 +257,13 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     p<-persons[row,]
     # generate a trip chain for this person
     tc<-generateTripChain(mc,p$SA1_MAINCODE_2016)
+    # build activities and legs for the person
+    df<-createMATSimActivitiesAndLegs(p, tc)
+    if(is.null(df)) return(NULL)
+    acts<-df[[1]]
+    legs<-df[[2]]
     # generate MATSim XML for this person
-    pp<-generateMATSimPersonXML(row-1, p, tc)
+    pp<-generateMATSimPersonXML(row-1, p, acts, legs)
     if(is.null(pp)) { 
       # can be NULL sometimes if type of location required for some activiy in chain cannot be found in given SA1
       discarded<-rbind(discarded,p)
