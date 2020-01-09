@@ -140,6 +140,8 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
       legs[i-1,]$dest_act_id<-acts[i,]$act_id
       legs[i-1,]$mode<-mode
     }
+    rownames(acts)<-seq(1:nrow(acts))
+    rownames(legs)<-seq(1:nrow(legs))
     return(list(acts,legs))
   }
   
@@ -251,10 +253,12 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
   echo(paste0('generating ', sampleSize, ' MATSim persons with VISTA-like trips\n'))
   popn<-newXMLNode("population", doc=doc)
   discarded<-persons[FALSE,]
+  allacts<-NULL; alllegs<-NULL;
   for (row in 1:nrow(persons)) {
     error=FALSE
     # get the person
     p<-persons[row,]
+    pid<-row-1
     # generate a trip chain for this person
     tc<-generateTripChain(mc,p$SA1_MAINCODE_2016)
     # build activities and legs for the person
@@ -262,8 +266,13 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     if(is.null(df)) return(NULL)
     acts<-df[[1]]
     legs<-df[[2]]
+    # also save all activities and legs for outputting to CSV
+    if (is.null(allacts)) allacts<-acts[FALSE,]
+    if (is.null(alllegs)) alllegs<-legs[FALSE,]
+    allacts<-rbind(allacts,cbind(personId=pid,acts));
+    alllegs<-rbind(alllegs,cbind(personId=pid,legs));
     # generate MATSim XML for this person
-    pp<-generateMATSimPersonXML(row-1, p, acts, legs)
+    pp<-generateMATSimPersonXML(pid, p, acts, legs)
     if(is.null(pp)) { 
       # can be NULL sometimes if type of location required for some activiy in chain cannot be found in given SA1
       discarded<-rbind(discarded,p)
@@ -282,6 +291,12 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     echo('following ',nrow(discarded),' persons were discarded as suitable locations for activities could not be assigned\n')
     cat(show(xx))
   }
+  outfile<-paste0(xmlfile,'.acts.csv')
+  echo(paste0('saving MATSim population activities as CSV to ', outfile , '\n'))
+  write.csv(allacts, file=outfile, quote=FALSE)
+  outfile<-paste0(xmlfile,'.legs.csv')
+  echo(paste0('saving MATSim population legs as CSV to ', outfile, '\n'))
+  write.csv(alllegs, file=outfile, quote=FALSE)
   
   echo(paste0('saving MATSim population to ', xmlfile, '\n'))
   sink() # end the diversion

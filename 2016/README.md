@@ -31,6 +31,8 @@ Rscript --vanilla -e 'suppressPackageStartupMessages(source("make2016Population.
 2020-01-09 12:49:05 | ..........|..........|..........|..........|..........| 100
 
 2020-01-09 12:49:37 | finished generating 100/100 persons
+2020-01-09 12:49:37 | saving MATSim population activities as CSV to mel2016popn100pax.xml.acts.csv
+2020-01-09 12:49:37 | saving MATSim population legs as CSV to mel2016popn100pax.xml.legs.csv
 2020-01-09 12:49:37 | saving MATSim population to mel2016popn100pax.xml
 
 ```
