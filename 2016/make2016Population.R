@@ -4,11 +4,12 @@
 
 suppressWarnings(library(markovchain))
 suppressWarnings(library(XML))
-source('persons/samplePersons.R')
-source('locations/importData.R')
+suppressWarnings(source('persons/samplePersons.R'))
+suppressWarnings(source('locations/importData.R'))
 
 make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
-  # create a trip chain for a person
+  
+  # internal function to create a trip chain for a person
   generateTripChain<-function(mc, SA1) {
     
     # internal function to general the trip chain
@@ -130,7 +131,10 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
             work_xy<-xy
           }
         }
+        
         # TODO: assign sensible start and end times for activities
+        acts[i,]$start_hhmmss<-"06:00:00"
+        acts[i,]$end_hhmmss<-"06:00:00"
         
         # save the leg
         mode=df[1]
@@ -238,15 +242,17 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
   sink(paste0(xmlfile,".log"), append=FALSE, split=TRUE) # sink to both console and log file
   
   # number of persons to create
-  echo(paste0('selecting a random sample of ', sampleSize, ' persons from the Melbourne 2016 population\n'))
+  cat('\n')
+  echo(paste0('selecting a random sample of ', sampleSize, ' persons from the Melbourne 2016 census population\n'))
   persons<-getPersons(sampleSize)
   
   # Read the markov chain model for trip chains
   mc<-readRDS('./activities/vista_2012_16_extracted_activities_weekday_markov_chain_model.rds')
   
   # create MATSim population XML
-  echo(paste0('generating ', sampleSize, ' MATSim persons with trips\n'))
-  popn<-newXMLNode("population")
+  doc <- newXMLDoc()
+  echo(paste0('generating ', sampleSize, ' MATSim persons with VISTA-like trips\n'))
+  popn<-newXMLNode("population", doc=doc)
   discarded<-persons[FALSE,]
   for (row in 1:nrow(persons)) {
     error=FALSE
@@ -275,10 +281,12 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     cat(show(xx))
   }
   
-  saveXML(popn, xmlfile)
-  echo(paste0('saved MATSim population to ', xmlfile))
+  echo(paste0('saving MATSim population to ', xmlfile, '\n'))
   sink() # end the diversion
+  # save using cat since direct save using saveXML loses formatting
+  cat(saveXML(doc, 
+              prefix=paste0('<?xml version="1.0" encoding="utf-8"?>\n',
+                            '<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v6.dtd">')),
+      file=xmlfile)
   
 }
-
-make2016MATSimMelbournePopulation(10, 'mel2016popn10pax.xml')
