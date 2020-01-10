@@ -4,6 +4,7 @@
 
 suppressWarnings(library(markovchain))
 suppressWarnings(library(XML))
+suppressWarnings(library(stringr))
 suppressWarnings(source('persons/samplePersons.R'))
 suppressWarnings(source('locations/importData.R'))
 
@@ -84,7 +85,7 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     if(is.null(home_xy)) return(NULL)
     
     # data frames for storing this person's activities and connecting legs
-    acts<-data.frame(act_id=NA, act_type=NA, sa1=NA, x=NA, y=NA, loc_type=NA, start_hhmmss=NA, end_hhmmss=NA)
+    acts<-data.frame(act_id=NA, act_type=NA, sa1=NA, x=NA, y=NA, loc_type=NA, end_hhmmss=NA)
     legs<-data.frame(origin_act_id=NA,mode=NA,dest_act_id=NA)
     
     # first activity is always home
@@ -95,8 +96,7 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     acts[1,]$sa1<-home_sa1
     acts[1,]$x<-home_xy[1]
     acts[1,]$y<-home_xy[2]
-    acts[1,]$start_hhmmss<-"06:00:00" # TODO: set sensible start/end times
-    acts[1,]$end_hhmmss<-"06:00:00" # TODO: set sensible start/end times
+    acts[1,]$end_hhmmss<-"06:00:00" # TODO: set sensible end times
     # determine the SA1 and coordinartes for the remaining activites
     mode<-NULL
     work_sa1<-NULL; work_xy<-NULL
@@ -132,9 +132,11 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
         }
       }
       
-      # TODO: assign sensible start and end times for activities
-      acts[i,]$start_hhmmss<-"06:00:00"
-      acts[i,]$end_hhmmss<-"06:00:00"
+      # TODO: assign sensible end times for activities
+      acts[i,]$end_hhmmss<-paste0(
+        str_pad(6+i,2,pad="0"),":", # using activitiy id to define end hour past 6am
+        str_pad(sample(seq(0,59),1),2,pad="0"),":", # random minutes in that hour
+        str_pad(sample(seq(0,59),1),2,pad="0")) # random seconds in that minute
       
       # save the leg
       mode=df[1]
@@ -178,7 +180,7 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
       xacts<-apply(
         acts, 1,
         function(x) {
-          n<-newXMLNode("activity", attrs=c(type=x[[2]], x=x[[4]], y=x[[5]], end_time=x[[8]]))
+          n<-newXMLNode("activity", attrs=c(type=x[[2]], x=x[[4]], y=x[[5]], end_time=x[[7]]))
         })
       # create the legs
       xlegs<-apply(
