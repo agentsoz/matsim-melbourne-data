@@ -67,8 +67,8 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     # ...
     
     # replace activity tags with location tags
-    tc<-replaceActivityWithLocationTags(tc)
-    return(tc)
+    tclocs<-replaceActivityWithLocationTags(tc)
+    return(list(tclocs, tc))
   }
   
   # split trip into tours
@@ -77,20 +77,21 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
   # }
   
   # Function to create activities and legs from given trip chain
-  createMATSimActivitiesAndLegs <- function(person, tc) {
+  createMATSimActivitiesAndLegs <- function(person, tc, tcacts) {
     # get a person and determine its home SA1 and coordinates
     home_sa1<-as.character(person$SA1_MAINCODE_2016)
     home_xy<-getAddressCoordinates(home_sa1,"home")
     if(is.null(home_xy)) return(NULL)
     
     # data frames for storing this person's activities and connecting legs
-    acts<-data.frame(act_id=NA, type=NA, sa1=NA, x=NA, y=NA, start_hhmmss=NA, end_hhmmss=NA)
+    acts<-data.frame(act_id=NA, act_type=NA, sa1=NA, x=NA, y=NA, loc_type=NA, start_hhmmss=NA, end_hhmmss=NA)
     legs<-data.frame(origin_act_id=NA,mode=NA,dest_act_id=NA)
     
     # first activity is always home
     if (tc[1] != "home") stop(paste0('First activity in trip chain must be `home` but was `',tc[1],'`'))
     acts[1,]$act_id<-1
-    acts[1,]$type<-"home"
+    acts[1,]$act_type<-tcacts[1]
+    acts[1,]$loc_type<-tc[1]
     acts[1,]$sa1<-home_sa1
     acts[1,]$x<-home_xy[1]
     acts[1,]$y<-home_xy[2]
@@ -101,12 +102,13 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     work_sa1<-NULL; work_xy<-NULL
     for(i in 2:length(tc)) {
       acts[i,]$act_id<-i
-      acts[i,]$type<-tc[i]
+      acts[i,]$act_type<-tcacts[i]
+      acts[i,]$loc_type<-tc[i]
       # determine SA1 for this activity type given last SA1
       if (is.null(mode) || tc[i-1]=="home") { # mode can change if last activity was home
-        df<-findLocation(acts[i-1,]$sa1,acts[i,]$type)
+        df<-findLocation(acts[i-1,]$sa1,acts[i,]$loc_type)
       } else {
-        df<-findLocationKnownMode(acts[i-1,]$sa1, acts[i,]$type, mode)
+        df<-findLocationKnownMode(acts[i-1,]$sa1, acts[i,]$loc_type, mode)
       }
       # assign the SA1 and coords
       if(tc[i]=="home") { # re-use home SA1 and coords
@@ -119,7 +121,7 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
         acts[i,]$y<-work_xy[2]
       } else {
         acts[i,]$sa1<-df[2]
-        xy<-getAddressCoordinates(acts[i,]$sa1,acts[i,]$type)
+        xy<-getAddressCoordinates(acts[i,]$sa1,acts[i,]$loc_type)
         if(is.null(xy)) return(NULL)
         acts[i,]$x<-xy[1]
         acts[i,]$y<-xy[2]
@@ -176,7 +178,7 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
       xacts<-apply(
         acts, 1,
         function(x) {
-          n<-newXMLNode("activity", attrs=c(type=x[[2]], x=x[[4]], y=x[[5]], end_time=x[[7]]))
+          n<-newXMLNode("activity", attrs=c(type=x[[2]], x=x[[4]], y=x[[5]], end_time=x[[8]]))
         })
       # create the legs
       xlegs<-apply(
@@ -260,9 +262,10 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
     p<-persons[row,]
     pid<-row-1
     # generate a trip chain for this person
-    tc<-generateTripChain(mc,p$SA1_MAINCODE_2016)
+    lst<-generateTripChain(mc,p$SA1_MAINCODE_2016)
+    tc<-lst[[1]]; tcacts<-lst[[2]]
     # build activities and legs for the person
-    df<-createMATSimActivitiesAndLegs(p, tc)
+    df<-createMATSimActivitiesAndLegs(p, tc, tcacts)
     if(is.null(df)) return(NULL)
     acts<-df[[1]]
     legs<-df[[2]]
@@ -293,10 +296,10 @@ make2016MATSimMelbournePopulation <- function(sampleSize, xmlfile) {
   }
   outfile<-paste0(xmlfile,'.acts.csv')
   echo(paste0('saving MATSim population activities as CSV to ', outfile , '\n'))
-  write.csv(allacts, file=outfile, quote=FALSE)
+  write.csv(allacts, file=outfile, quote=TRUE)
   outfile<-paste0(xmlfile,'.legs.csv')
   echo(paste0('saving MATSim population legs as CSV to ', outfile, '\n'))
-  write.csv(alllegs, file=outfile, quote=FALSE)
+  write.csv(alllegs, file=outfile, quote=TRUE)
   
   echo(paste0('saving MATSim population to ', xmlfile, '\n'))
   sink() # end the diversion
